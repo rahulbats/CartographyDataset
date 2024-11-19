@@ -102,6 +102,7 @@ def plot_data_map(data, title="Data Map"):
 
     plt.tight_layout()
     plt.show()
+    plt.gcf().canvas.flush_events()
 
 
 def main(checkpoint_dir):
