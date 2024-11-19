@@ -53,12 +53,19 @@ class CartographyCallback(TrainerCallback):
                 self.training_dynamics["variability"][example_id] = []
                 self.training_dynamics["correctness"][example_id] = []
 
-            self.training_dynamics["confidence"][example_id].append(max_probs[i])
-            self.training_dynamics["variability"][example_id].append(probabilities[i])
-            self.training_dynamics["correctness"][example_id].append(correct[i])
+            self.training_dynamics["confidence"][example_id].append(float(max_probs[i]))
+            self.training_dynamics["variability"][example_id].append(probabilities[i].tolist())
+            self.training_dynamics["correctness"][example_id].append(int(correct[i]))
 
-    def on_train_end(self, args, state, control, **kwargs):
-        # Save the collected training dynamics at the end of training
-        output_path = os.path.join(args.output_dir, "training_dynamics.json")
-        with open(output_path, "w") as f:
-            json.dump(self.training_dynamics, f, indent=4)
+    def on_save(self, args, state, control, **kwargs):
+        # Save the training dynamics to the checkpoint directory
+        checkpoint_dir = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+        if not checkpoint_dir:
+            print("No checkpoint directory inferred. Skipping saving training dynamics.")
+            return
+
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        json_path = os.path.join(checkpoint_dir, "training_dynamics.json")
+        with open(json_path, "w") as f:
+            json.dump(self.training_dynamics, f)
+        print(f"Training dynamics saved to {json_path}")
