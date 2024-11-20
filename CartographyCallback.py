@@ -11,10 +11,12 @@ class CartographyCallback(TrainerCallback):
         self.training_dynamics = {
             "example_ids": [],
             "confidence": {},
-            "variability": {},
+            "probabilities": {},
             "correctness": {},
+            "epoch": {}
         }
-    
+        self.last_logged_epoch = -1
+
     def on_train_begin(self, args, state, control, **kwargs):
         print("on_train_begin invoked")  # Add a print statement to see if the training is starting
 
@@ -22,7 +24,10 @@ class CartographyCallback(TrainerCallback):
         """
         Capture training dynamics during the logging phase.
         """
+        # Log only on unique epochs
+        current_epoch = int(state.epoch) if state.epoch is not None else None
         
+
         inputs = getattr(state, "inputs", None)
         outputs = getattr(state, "outputs", None)
         if outputs is None or inputs is None:
@@ -50,12 +55,15 @@ class CartographyCallback(TrainerCallback):
             if example_id not in self.training_dynamics["example_ids"]:
                 self.training_dynamics["example_ids"].append(example_id)
                 self.training_dynamics["confidence"][example_id] = []
-                self.training_dynamics["variability"][example_id] = []
+                self.training_dynamics["probabilities"][example_id] = []
                 self.training_dynamics["correctness"][example_id] = []
+                self.training_dynamics["epoch"][example_id] = []
 
             self.training_dynamics["confidence"][example_id].append(float(max_probs[i]))
-            self.training_dynamics["variability"][example_id].append(probabilities[i].tolist())
+            self.training_dynamics["probabilities"][example_id].append(probabilities[i].tolist())
             self.training_dynamics["correctness"][example_id].append(int(correct[i]))
+            self.training_dynamics["epoch"][example_id].append(current_epoch)
+
 
     def on_save(self, args, state, control, **kwargs):
         # Save the training dynamics to the checkpoint directory
@@ -68,4 +76,12 @@ class CartographyCallback(TrainerCallback):
         json_path = os.path.join(checkpoint_dir, "training_dynamics.json")
         with open(json_path, "w") as f:
             json.dump(self.training_dynamics, f)
-        print(f"Training dynamics saved to {json_path}")
+            
+        self.training_dynamics= {
+            "example_ids": [],
+            "confidence": {},
+            "probabilities": {},
+            "correctness": {},
+            "epoch": {}
+        }    
+        
