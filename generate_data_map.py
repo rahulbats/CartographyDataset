@@ -28,20 +28,18 @@ def load_training_dynamics(checkpoint_dir):
                     # Process example IDs
                     for example_id in dynamics["example_ids"]:
                         # Populate confidence
-                        if example_id in dynamics["confidence"]:
-                            combined_dynamics[example_id]["confidence"].extend(
+                        combined_dynamics[example_id]["confidence"].extend(
                                 dynamics["confidence"].get(example_id, [])
                             )
                         # Populate variability
-                        if example_id in dynamics["variability"]:
-                            combined_dynamics[example_id]["variability"].extend(
+                        combined_dynamics[example_id]["variability"].extend(
                                 dynamics["variability"].get(example_id, [])
                             )
                         # Populate correctness
-                        if example_id in dynamics["correctness"]:
-                            combined_dynamics[example_id]["correctness"].extend(
+                        combined_dynamics[example_id]["correctness"].extend(
                                 dynamics["correctness"].get(example_id, [])
                             )
+                print(f"Loaded {len(combined_dynamics)} training dynamics from {file_path}")                
     return combined_dynamics
 
 
@@ -59,11 +57,8 @@ def compute_metrics(combined_dynamics):
 
     for example_id, metrics in combined_dynamics.items():
         avg_confidence = np.mean(metrics["confidence"]) if metrics["confidence"] else 0
-        avg_variability = (
-            np.mean([np.std(probabilities) for probabilities in metrics["variability"]])
-            if metrics["variability"]
-            else 0
-        )
+        avg_variability = np.std(metrics["confidence"]) if metrics["confidence"] else 0
+        
         avg_correctness = np.mean(metrics["correctness"]) if metrics["correctness"] else 0
 
         processed_data["confidence"].append(avg_confidence)
@@ -72,10 +67,12 @@ def compute_metrics(combined_dynamics):
 
     return processed_data
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_data_map(data, title="Data Map"):
     """
-    Plot the data map with confidence, variability, and correctness.
+    Plot the data map with confidence, variability, and correctness using different markers.
 
     Args:
         data (dict): Data containing confidence, variability, and correctness.
@@ -85,14 +82,28 @@ def plot_data_map(data, title="Data Map"):
     variability = data["variability"]
     correctness = data["correctness"]
 
+    # Define marker styles for different correctness levels
+    markers = {1: "o",0.8:"v", 0.5: "s",0.3: "*", 0.2: "+", 0: "x"}  # Circle, square, and cross
+
     plt.figure(figsize=(12, 8))
-    scatter = plt.scatter(
-        variability, confidence, c=correctness, cmap="coolwarm", s=50, alpha=0.8, edgecolors="k"
-    )
-    plt.colorbar(scatter, label="Correctness")
+
+    # Plot each point based on correctness with corresponding marker
+    for correct_level, marker in markers.items():
+        mask = np.isclose(correctness, correct_level)  # Filter points for this correctness level
+        plt.scatter(
+            np.array(variability)[mask],
+            np.array(confidence)[mask],
+            label=f"Correctness: {correct_level}",
+            marker=marker,
+            s=50,
+            alpha=0.8,
+            edgecolors="k"
+        )
+
     plt.title(title)
     plt.xlabel("Variability")
     plt.ylabel("Confidence")
+    plt.legend(title="Correctness")
     plt.grid(alpha=0.3)
 
     # Optional: Annotate plot regions
@@ -113,7 +124,9 @@ def main(checkpoint_dir):
         checkpoint_dir (str): Path to the checkpoint directory.
     """
     dynamics = load_training_dynamics(checkpoint_dir)
+    print(f"Loaded training dynamics for {len(dynamics)} examples.")
     processed_data = compute_metrics(dynamics)
+    print(f"Computed metrics for {len(processed_data['confidence'])} examples.")
     plot_data_map(processed_data, title="Training Data Map")
 
 
