@@ -74,6 +74,7 @@ class CartographyCallback(TrainerCallback):
 
         os.makedirs(checkpoint_dir, exist_ok=True)
         json_path = os.path.join(checkpoint_dir, "training_dynamics.json")
+        print(f"Saving training dynamics to {json_path}")
         with open(json_path, "w") as f:
             json.dump(self.training_dynamics, f)
             
