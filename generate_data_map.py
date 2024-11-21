@@ -6,6 +6,7 @@ import os
 import argparse
 import hashlib
 import base64
+import matplotlib.gridspec as gridspec
 
 def load_training_dynamics(checkpoint_dir):
     """
@@ -72,7 +73,7 @@ def compute_metrics(combined_dynamics):
     return processed_data
 
 
-def plot_data_map(data, title="Data Map"):
+def plot_data_map(fig,ax,data, title="Data Map"):
     """
     Plot the data map with confidence, variability, and correctness using hoverable hashes.
 
@@ -87,7 +88,7 @@ def plot_data_map(data, title="Data Map"):
 
    
 
-    fig, ax = plt.subplots(figsize=(12, 8))
+    #fig, ax = plt.subplots(figsize=(12, 8))
 
     # Define the ranges and corresponding markers
     ranges = [
@@ -107,14 +108,17 @@ def plot_data_map(data, title="Data Map"):
         y = confidence[i]
         c = correctness[i]
         
-        label = None  # Default label is None
+        label = 0  # Default label is None
         marker = "x"  # Default marker
 
         # Determine the range and marker for the current correctness value
         for lower, upper, marker, color in ranges:
-            if (c > lower) and (c <= upper):
+             if lower == upper and c == lower:  # Handle exact match for correctness == 0
                 label = upper
-                break  # Break out of the loop once the range is found
+                break
+             elif lower < c <= upper:  # Handle ranges
+                label = upper
+                break
         
         # Only add the label if it hasn't been used before
         if label in used_labels:
@@ -184,6 +188,58 @@ def plot_data_map(data, title="Data Map"):
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
+    #plt.show()
+
+
+def plot_single_density(ax, data, label, color):
+    """
+    Plot a single density histogram.
+
+    Args:
+        ax (matplotlib.axis): Axis to draw the density plot.
+        data (list or numpy.array): Data for the histogram.
+        label (str): Label for the histogram.
+        color (str): Color for the histogram bars.
+    """
+    ax.hist(data, bins=30, color=color, alpha=0.8, orientation="horizontal")
+    ax.set_title(label)
+    ax.set_xlabel("Density")
+    ax.grid(alpha=0.3)
+
+
+def plot_combined(data, title="Data Map with Density"):
+    """
+    Combine the scatter plot (data map) with three vertical density histograms on the right.
+
+    Args:
+        data (dict): Data containing confidence, variability, correctness, and hashes.
+        title (str): Title for the combined plot.
+    """
+    fig = plt.figure(figsize=(16, 8))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])  # Scatter plot and vertical stack
+
+    # Scatter plot on the left
+    ax_scatter = plt.subplot(gs[0])
+    plot_data_map(fig, ax_scatter, data)
+
+    # Create a vertical split for density plots
+    density_gs = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[1], hspace=0.4)
+
+    # Density plot for confidence
+    ax_density_conf = plt.subplot(density_gs[0])
+    plot_single_density(ax_density_conf, data["confidence"], "Confidence", "purple")
+
+    # Density plot for variability
+    ax_density_var = plt.subplot(density_gs[1])
+    plot_single_density(ax_density_var, data["variability"], "Variability", "teal")
+
+    # Density plot for correctness
+    ax_density_corr = plt.subplot(density_gs[2])
+    plot_single_density(ax_density_corr, data["correctness"], "Correctness", "green")
+
+    # Set overall title
+    fig.suptitle(title, fontsize=16)
+    plt.tight_layout()
     plt.show()
 
 
@@ -201,4 +257,6 @@ if __name__ == "__main__":
     # Load dynamics, compute metrics, and plot
     dynamics = load_training_dynamics(args.checkpoint_dir)
     processed_data = compute_metrics(dynamics)
-    plot_data_map(processed_data, title="Training Data Map")
+    plot_combined(processed_data, title="Training Data Map")
+
+    
