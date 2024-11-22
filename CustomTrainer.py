@@ -7,7 +7,7 @@ class CustomTrainer(Trainer):
         Override compute_loss to capture logits and labels.
         """
         labels = inputs["labels"]
-        example_ids = inputs.pop("example_id", None)
+        example_ids = inputs.pop("example_ids", None)
         outputs = model(**inputs)
         logits = outputs.logits
         loss = torch.nn.functional.cross_entropy(logits, labels)
