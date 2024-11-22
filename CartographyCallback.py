@@ -1,4 +1,3 @@
-import hashlib
 from transformers import TrainerCallback
 import torch
 import numpy as np
@@ -13,7 +12,9 @@ class CartographyCallback(TrainerCallback):
             "confidence": {},
             "probabilities": {},
             "correctness": {},
-            "epoch": {}
+            "label": {},
+            "epoch": {},
+            "step": {}
         }
         self.last_logged_epoch = -1
 
@@ -26,7 +27,7 @@ class CartographyCallback(TrainerCallback):
         """
         # Log only on unique epochs
         current_epoch = int(state.epoch) if state.epoch is not None else None
-        
+        step = state.global_step
 
         inputs = getattr(state, "inputs", None)
         outputs = getattr(state, "outputs", None)
@@ -57,13 +58,17 @@ class CartographyCallback(TrainerCallback):
                 self.training_dynamics["confidence"][example_id] = []
                 self.training_dynamics["probabilities"][example_id] = []
                 self.training_dynamics["correctness"][example_id] = []
+                self.training_dynamics["label"][example_id] = []
                 self.training_dynamics["epoch"][example_id] = []
+                self.training_dynamics["step"][example_id] = []
 
             self.training_dynamics["confidence"][example_id].append(float(max_probs[i]))
             self.training_dynamics["probabilities"][example_id].append(probabilities[i].tolist())
             self.training_dynamics["correctness"][example_id].append(int(correct[i]))
-            self.training_dynamics["epoch"][example_id].append(current_epoch)
+            self.training_dynamics["label"][example_id].append(int(labels[i]))
 
+            self.training_dynamics["epoch"][example_id].append(current_epoch)
+            self.training_dynamics["step"][example_id].append(step)
 
     def on_save(self, args, state, control, **kwargs):
         # Save the training dynamics to the checkpoint directory
@@ -83,6 +88,8 @@ class CartographyCallback(TrainerCallback):
             "confidence": {},
             "probabilities": {},
             "correctness": {},
-            "epoch": {}
+            "label": {},
+            "epoch": {},
+            "step": {}
         }    
         
