@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import os
 import argparse
-
+import matplotlib.patches as mpatches
 import base64
 import matplotlib.gridspec as gridspec
 import mplcursors
@@ -19,7 +19,7 @@ def load_training_dynamics(checkpoint_dir):
     Returns:
         dict: Combined training dynamics.
     """
-    combined_dynamics = defaultdict(lambda: {"confidence": [], "probabilities": [], "correctness": [], "label": []})
+    combined_dynamics = defaultdict(lambda: {"confidence": [], "probabilities": [], "correctness": [], "label": [], "epoch": [], "step": []})
 
     for root, _, files in os.walk(checkpoint_dir):
         for file in files:
@@ -30,8 +30,7 @@ def load_training_dynamics(checkpoint_dir):
 
                     # Process example IDs
                     for example_id in dynamics["example_ids"]:
-                        #if( dynamics["epoch"].get(example_id)[0] in combined_dynamics[example_id]["epoch"]):
-                         #   continue
+                        
                         combined_dynamics[example_id]["confidence"].extend(
                             dynamics["confidence"].get(example_id, [])
                         )
@@ -59,20 +58,21 @@ def compute_metrics(combined_dynamics):
         dict: Processed data for plotting (confidence, variability, correctness, hashes).
     """
     processed_data = {"confidence": [], "variability": [], "correctness": [], "hashes": [], "label": []}
-
+    print(f"Loaded {len(combined_dynamics)} training dynamics before filtering")  
     for example_id, metrics in combined_dynamics.items():
-        avg_confidence = np.mean(metrics["confidence"]) if metrics["confidence"] else 0
-        avg_variability = np.std(metrics["confidence"]) if metrics["confidence"] else 0
-        avg_correctness = np.mean(metrics["correctness"]) if metrics["correctness"] else 0
-        label = metrics["label"][0] if metrics["label"] else 0
+        if len(metrics["confidence"])>1:
+            avg_confidence = np.mean(metrics["confidence"]) if metrics["confidence"] else 0
+            avg_variability = np.std(metrics["confidence"]) if metrics["confidence"] else 0
+            avg_correctness = np.mean(metrics["correctness"]) if metrics["correctness"] else 0
+            label = metrics["label"][0] if metrics["label"] else 0
 
-        # Use example_id directly as the hash
-        processed_data["confidence"].append(avg_confidence)
-        processed_data["variability"].append(avg_variability)
-        processed_data["correctness"].append(avg_correctness)
-        processed_data["hashes"].append(example_id)
-        processed_data["label"].append(label)
-
+            # Use example_id directly as the hash
+            processed_data["confidence"].append(avg_confidence)
+            processed_data["variability"].append(avg_variability)
+            processed_data["correctness"].append(avg_correctness)
+            processed_data["hashes"].append(example_id)
+            processed_data["label"].append(label)
+    print(f"Loaded {len(processed_data['confidence'])} training dynamics after filtering")  
     return processed_data
 
 
@@ -84,40 +84,63 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     hashes = np.array(data["hashes"])
 
     # Define the ranges and corresponding markers
-    ranges = [
-        (0, 0, "x", "red"),         # Exact 0
-        (0, 0.2, "+", "orange"),    # [0, 0.2)
+    marker_ranges = [
+       
+        (0, 0.2, "x", "orange"),    # [0, 0.2)
         (0.2, 0.3, "*", "purple"),  # [0.2, 0.3)
         (0.3, 0.5, "s", "blue"),    # [0.3, 0.5)
         (0.5, 1, "o", "green"),     # [0.5, 1]
     ]
 
-    scatter_objects = []
-    for lower, upper, marker, color in ranges:
-        # Filter data points based on correctness range
-        indices = (correctness >= lower) & (correctness <= upper)
-        sc = ax.scatter(
-            variability[indices],  # x-values
-            confidence[indices],   # y-values
-            label=f"{lower} ≤ Correctness ≤ {upper}",
-            marker=marker,
-            color=color,
-            s=50,
-            alpha=0.8,
-            edgecolors="k",
-        )
-        scatter_objects.append(sc)
 
-    # Attach mplcursors to all scatter plots
-    cursor = mplcursors.cursor(scatter_objects, hover=True)
+    # Generate legend handles based on marker_ranges
+    legend_handles = []
+    for marker_range in marker_ranges:
+        lower, upper, marker, color = marker_range
+        legend_label = f"{lower} < Correctness ≤ {upper}"
+        patch = mpatches.Patch(color=color, label=legend_label)
+        legend_handles.append(patch)
+
+
+    #scatter_objects = []
+    x_values = []
+    y_values = []
+    colors = []
+    markers = []
+    metadata = []
+    for index in range(len(correctness)):
+        for marker_range in marker_ranges:
+            lower, upper, marker, color = marker_range
+            if correctness[index] > lower and correctness[index] <= upper:
+                x_values.append(variability[index])
+                y_values.append(confidence[index])
+                colors.append(color)
+                markers.append(marker)
+                hash_idx = base64.b64decode(hashes[index]).decode('utf-8').split("|||")
+                metadata.append(f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}")
+                break
+
+    # Plot all points in a single scatter plot
+    sc = ax.scatter(
+        x_values,  # All x-values
+        y_values,  # All y-values
+        c=colors,  # Colors for each point
+        s=50,
+        alpha=0.8,
+        edgecolors="k", 
+    )
+    sc.metadata = metadata  
+    # Attach mplcursors to the single scatter plot
+    cursor = mplcursors.cursor(sc, hover=True)
 
     @cursor.connect("add")
     def on_hover(sel):
-        index = sel.index
-        hash_idx = base64.b64decode(hashes[index]).decode('utf-8').split("|||")
+        hovered_metadata = sc.metadata[sel.index]  # Use sel.index to get metadata
         sel.annotation.set_text(
-            f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}"
+            #f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}"
+            hovered_metadata
         )
+
 
     @cursor.connect("remove")
     def on_leave(sel):
@@ -130,7 +153,7 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     ax.set_xlabel("Variability")
     ax.set_ylabel("Confidence")
     ax.set_title(title)
-    ax.legend(title="Correctness")
+    ax.legend(handles=legend_handles, title="Correctness", loc="best")
 
 
 
@@ -169,7 +192,7 @@ def plot_single_density(ax, data, label, color):
         label (str): Label for the histogram.
         color (str): Color for the histogram bars.
     """
-    ax.hist(data, bins=30, color=color, alpha=0.8, orientation="horizontal")
+    ax.hist(data, bins=30, color=color, alpha=0.8, orientation="vertical")
     ax.set_title(label)
     ax.set_xlabel("Density")
     ax.grid(alpha=0.3)
