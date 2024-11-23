@@ -164,11 +164,11 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     y_min, y_max = ax.get_ylim()
 
     # Define offsets as percentages of the axis range
-    x_offset = (x_max - x_min) * 0.10  # 10% of the x-range
-    y_offset = (y_max - y_min) * 0.10  # 10% of the y-range
+    x_offset = (x_max - x_min) * 0.02 # 10% of the x-range
+    y_offset = (y_max - y_min) * 0.02  # 10% of the y-range
 
     # Add text in the top-left corner
-    ax.text(x_min + x_offset, y_max - y_offset, "Easy to Learn", fontsize=10, ha='left', va='top', color='blue', clip_on=False, fontweight='bold')
+    ax.text(x_min + x_offset, y_max - y_offset, "Easy to Learn", fontsize=10, ha='left', va='top', color='red', clip_on=False, fontweight='bold')
 
     # Add text in the middle
     ax.text((x_min + x_max) / 2, (y_min + y_max) / 2, "Ambiguous", fontsize=10, ha='center', va='center', color='brown', clip_on=False, fontweight='bold')
