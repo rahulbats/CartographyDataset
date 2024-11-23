@@ -62,7 +62,7 @@ def compute_metrics(combined_dynamics):
     for example_id, metrics in combined_dynamics.items():
         if len(metrics["confidence"])>1:
             avg_confidence = np.mean(metrics["confidence"]) if metrics["confidence"] else 0
-            avg_variability = np.std(metrics["confidence"]) if metrics["confidence"] else 0
+            avg_variability = np.std(metrics["confidence"], dtype=np.float64) if metrics["confidence"] else 0
             avg_correctness = np.mean(metrics["correctness"]) if metrics["correctness"] else 0
             label = metrics["label"][0] if metrics["label"] else 0
 
@@ -86,20 +86,25 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     # Define the ranges and corresponding markers
     marker_ranges = [
        
-        (0, 0.2, "x", "orange"),    # [0, 0.2)
-        (0.2, 0.3, "*", "purple"),  # [0.2, 0.3)
-        (0.3, 0.5, "s", "blue"),    # [0.3, 0.5)
-        (0.5, 1, "o", "green"),     # [0.5, 1]
+        (0, 0.2, "x", "red"),    # [0, 0.2)
+        (0.2, 0.4, "x", "orange"),    # [0, 0.2)
+        (0.4, 0.6, "*", "purple"),  # [0.2, 0.3)
+        (0.6, 0.8, "o", "green"),     # [0.5, 1]
+        (0.8, 1, "s", "blue"),    # [0.3, 0.5)
     ]
-
 
     # Generate legend handles based on marker_ranges
     legend_handles = []
-    for marker_range in marker_ranges:
-        lower, upper, marker, color = marker_range
+    patch = mpatches.Patch(color="red", label="0 <= Correctness ≤ 0.2")
+    legend_handles.append(patch)
+    
+    i=1
+    while i < len(marker_ranges):
+        lower, upper, marker, color = marker_ranges[i]
         legend_label = f"{lower} < Correctness ≤ {upper}"
         patch = mpatches.Patch(color=color, label=legend_label)
         legend_handles.append(patch)
+        i+=1
 
 
     #scatter_objects = []
@@ -111,7 +116,9 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     for index in range(len(correctness)):
         for marker_range in marker_ranges:
             lower, upper, marker, color = marker_range
-            if correctness[index] > lower and correctness[index] <= upper:
+            if color is None:
+                color = "red"
+            if correctness[index]==0 or correctness[index] > lower and correctness[index] <= upper:
                 x_values.append(variability[index])
                 y_values.append(confidence[index])
                 colors.append(color)
