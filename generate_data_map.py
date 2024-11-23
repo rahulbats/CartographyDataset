@@ -117,7 +117,7 @@ def plot_data_map(fig, ax, data, title="Data Map"):
                 colors.append(color)
                 markers.append(marker)
                 hash_idx = base64.b64decode(hashes[index]).decode('utf-8').split("|||")
-                metadata.append(f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}")
+                metadata.append(f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {'Entailment' if labels[index]==0 else 'Neutral' if labels[index]==1 else 'Contradiction' } \nCorrectness: {correctness[index]:.2f}")
                 break
 
     # Plot all points in a single scatter plot
@@ -136,6 +136,8 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     @cursor.connect("add")
     def on_hover(sel):
         hovered_metadata = sc.metadata[sel.index]  # Use sel.index to get metadata
+        # Change alpha for hovered point
+        sel.artist.set_alpha(0.9)  # Hover alpha
         sel.annotation.set_text(
             #f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}"
             hovered_metadata
