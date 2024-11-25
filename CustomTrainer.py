@@ -1,3 +1,7 @@
+from transformers import Trainer
+import torch
+from FocalLoss import FocalLoss
+
 class CustomTrainer(Trainer):
     def __init__(self, *args, gamma=2, alpha=0.25, **kwargs):
         """
