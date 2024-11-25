@@ -60,7 +60,7 @@ def compute_metrics(combined_dynamics):
     processed_data = {"confidence": [], "variability": [], "correctness": [], "hashes": [], "label": []}
     print(f"Loaded {len(combined_dynamics)} training dynamics before filtering")  
     for example_id, metrics in combined_dynamics.items():
-        if len(metrics["confidence"])>1:
+        #if len(metrics["confidence"])>1:
             avg_confidence = np.mean(metrics["confidence"]) if metrics["confidence"] else 0
             avg_variability = np.std(metrics["confidence"], dtype=np.float64) if metrics["confidence"] else 0
             avg_correctness = np.mean(metrics["correctness"]) if metrics["correctness"] else 0
@@ -248,6 +248,38 @@ def plot_combined(data, title="Data Map with Density"):
     plt.show()
 
 
+def get_focussed_sets( checkpoint_dir,max_confidence=0.5, max_variability=None, max_correctness=0.5):
+    """
+    Filter the dataset based on confidence, variability, and correctness thresholds.
+
+    Args:
+        checkpoint_dir (str): Path to the checkpoint directory containing training_dynamics.json files.
+        min_confidence (float): Minimum confidence threshold.
+        max_variability (float): Maximum variability threshold.
+        min_correctness (float): Minimum correctness threshold.
+
+    Returns:
+        dict: Filtered data.
+    """
+    dynamics = load_training_dynamics(checkpoint_dir)
+    data = compute_metrics(dynamics)
+    filtered_hashes =set()
+    confidence = np.array(data["confidence"])
+    variability = np.array(data["variability"])
+    correctness = np.array(data["correctness"])
+    hashes = np.array(data["hashes"]).tolist()
+
+    for i in range(len(confidence)):
+        if confidence[i] <=max_confidence and correctness[i] <= max_correctness and (max_variability is None or variability[i] <= max_variability):
+            filtered_hashes.add(hashes[i])
+            
+    return filtered_hashes
+
+def plot(checkpoint_dir):
+    dynamics = load_training_dynamics(checkpoint_dir)
+    processed_data = compute_metrics(dynamics)
+    plot_combined(processed_data, title="Training Data Map")
+
 # Example main function and argument parsing
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a data map from training dynamics.")
@@ -258,10 +290,5 @@ if __name__ == "__main__":
         help="Path to the checkpoint directory containing training_dynamics.json files.",
     )
     args = parser.parse_args()
-
-    # Load dynamics, compute metrics, and plot
-    dynamics = load_training_dynamics(args.checkpoint_dir)
-    processed_data = compute_metrics(dynamics)
-    plot_combined(processed_data, title="Training Data Map")
-
+    plot(args.checkpoint_dir)
     
