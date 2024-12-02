@@ -10,6 +10,12 @@ This repository, **Focused-Training-Cartography**, contains code to create carto
 - **Focused Dataset Creation**: Automatically creates focused datasets for fine-tuning based on criteria such as low confidence and high variability.
 - **Ensemble Learning**: Combines models trained on different data subsets to improve generalization and robustness.
 
+## Files Included
+
+- **CustomTrainer.py**: A custom trainer to use while training, enabling capturing of detailed metrics.
+- **CartographyCallback.py**: A custom callback that saves the metrics along with the hashcode of the concatenated string of hypothesis and premise, separated by a separator.
+- **generate\_data\_map.py**: Generates the cartographic plots and includes the tooltip code, allowing you to hover over any point to see the source record.
+
 ## Installation
 
 To use the code in this repository, you need to have Python 3.7+ and the following dependencies:
@@ -28,10 +34,20 @@ The key dependencies include:
 
 ### Training the Model
 
-To train the Electra-Small model on the SNLI dataset:
+To train using the CustomTrainer model use the following code:
 
 ```bash
-python train.py --dataset snli --model electra-small
+trainer = CustomTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset_featurized,
+        eval_dataset=eval_dataset_featurized,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        
+        compute_metrics=compute_metrics_and_store_predictions,
+        callbacks=[CartographyCallback()]  # Add the cartography callback here
+    )
 ```
 
 ### Capturing Confidence and Variability Scores
@@ -78,9 +94,9 @@ The key findings from the training experiments include:
 
 ## Cartographic Analysis Example
 
-
-
 The cartographic map shows how the model interacts with different subsets of data, allowing targeted improvements.
+
+![Training Data Map](./plot.png)
 
 ## Citation
 
@@ -88,7 +104,7 @@ If you find this repository useful, please cite:
 
 ```
 @article{bhattacharya2024nli,
-  title={Improving Natural Language Inference with Electra-Small and Cartographic Data Analysis},
+  title={Improving Natural Language Inference with Cartographic Data Analysis},
   author={Rahul Bhattacharya},
   year={2024}
 }
