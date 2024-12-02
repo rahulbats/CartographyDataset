@@ -63,40 +63,56 @@ python capture_scores.py --output scores.csv
 To generate cartographic maps to visualize the training data points:
 
 ```bash
-python visualize_cartography.py --input scores.csv --output plot_with_tooltip.png
+python generate_data_map.py --checkpoint_dir .
 ```
 
-This generates a plot that allows inspection of data points, including tooltips that display the hypothesis, premise, and labels for each instance.
+This generates a plot that allows inspection of data points, including tooltips that display the hypothesis, premise, and labels for each instance. The checkpoint\_dir is the parent directory of all your huggingface checkpoints as the jsons with the metrics are stored here
 
 ### Fine-Tuning on Focused Dataset
 
-To fine-tune the model on a focused subset of data using min/max confidence, variability, and correctness:
+To fine-tune the model on a focused subset of data using min/max confidence, variability, and correctness, create a dataset from the checkpoints directory using code like this :
 
 ```bash
-python fine_tune.py --dataset focused_subset --model electra-small --min_confidence 0.5 --max_variability 0.2
+train_dataset = Dataset.from_dict(get_focussed_sets(checkpoint_dir=args.checkpoint_dir,max_confidence=args.max_confidence, min_confidence=args.min_confidence, max_variability=args.max_variability, min_variability=args.min_variability, max_correctness=args.max_correctness, min_correctness=args.min_correctness))          
 ```
+
+Pass in the filter criteria like min\_*confidence, max\_confidence,  min\_*variability etc. You can now train your trainer on this custom dataset to do targeted training.
 
 ## Ensemble Learning
 
-The repository includes an ensemble approach to improve robustness:
+Just using a model trained on subset of data. Usually does not improve performance. A better approach is to use the generic model and the targetted model and use the mean of the 2 logits to do the predictions. This custom trainer class TwoModelMeanTrainer.py has been added for that purpose. You can invoke it so.
+
+&#x20;        &#x20;
 
 ```bash
-python ensemble.py --models model_1.pt model_2.pt --output ensemble_model.pt
+trainer = TwoModelMeanTrainer(
+        model=model,
+        model1=model,
+        model2=model2,
+        args=training_args,
+        train_dataset=train_dataset_featurized,
+        eval_dataset=eval_dataset_featurized,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        
+        compute_metrics=compute_metrics_and_store_predictions,
+        callbacks=[CartographyCallback()]  # Add your custom callback here
+    )
 ```
 
 ## Results
 
-The key findings from the training experiments include:
+The key findings from the training experiments using Electra-small on snli dataset include:
 
 - Baseline accuracy: **89%** on SNLI dataset.
 - Improved accuracy on challenging examples with focused dataset fine-tuning.
-- Robust performance using an ensemble of multiple models.
+- Robust performance using an ensemble of multiple models which gave a little over 89%, but probably can be improved further with more training data.
 
 ## Cartographic Analysis Example
 
 The cartographic map shows how the model interacts with different subsets of data, allowing targeted improvements.
 
-![Training Data Map](./plot.png)
+
 
 ## Citation
 
