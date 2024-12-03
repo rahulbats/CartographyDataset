@@ -28,7 +28,7 @@ The key dependencies include:
 
 - `transformers`: HuggingFace library for training Electra-Small
 - `matplotlib`: For visualizing cartographic maps
-- `numpy`, `pandas`: For data handling and manipulation
+- `mplcursors`: For displaying the tooltips for source record 
 
 ## Usage
 
@@ -88,6 +88,7 @@ trainer = TwoModelMeanTrainer(
         model=model,
         model1=model,
         model2=model2,
+        w1=args.w1,
         args=training_args,
         train_dataset=train_dataset_featurized,
         eval_dataset=eval_dataset_featurized,
@@ -95,8 +96,7 @@ trainer = TwoModelMeanTrainer(
         data_collator=data_collator,
         
         compute_metrics=compute_metrics_and_store_predictions,
-        callbacks=[CartographyCallback()]  # Add your custom callback here
-    )
+       )
 ```
 
 ## Results
@@ -122,6 +122,14 @@ If you find this repository useful, please cite:
   title={Improving Natural Language Inference with Cartographic Data Analysis},
   author={Rahul Bhattacharya},
   year={2024}
+}
+
+@inproceedings{swayamdipta2020dataset,
+    title={Dataset Cartography: Mapping and Diagnosing Datasets with Training Dynamics},
+    author={Swabha Swayamdipta and Roy Schwartz and Nicholas Lourie and Yizhong Wang and Hannaneh Hajishirzi and Noah A. Smith and Yejin Choi},
+    booktitle={Proceedings of EMNLP},
+    url={https://arxiv.org/abs/2009.10795},
+    year={2020}
 }
 ```
 
