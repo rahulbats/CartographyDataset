@@ -86,11 +86,11 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     # Define the ranges and corresponding markers
     marker_ranges = [
        
-        (0, 0.2, "x", "red"),    # [0, 0.2)
-        (0.2, 0.4, "x", "orange"),    # [0, 0.2)
-        (0.4, 0.6, "*", "purple"),  # [0.2, 0.3)
-        (0.6, 0.8, "o", "green"),     # [0.5, 1]
-        (0.8, 1, "s", "blue"),    # [0.3, 0.5)
+        (0, 0.2, "red"),    # [0, 0.2)
+        (0.2, 0.4,  "orange"),    # [0, 0.2)
+        (0.4, 0.6,  "purple"),  # [0.2, 0.3)
+        (0.6, 0.8, "green"),     # [0.5, 1]
+        (0.8, 1,  "blue"),    # [0.3, 0.5)
     ]
 
     # Generate legend handles based on marker_ranges
@@ -100,7 +100,7 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     
     i=1
     while i < len(marker_ranges):
-        lower, upper, marker, color = marker_ranges[i]
+        lower, upper,  color = marker_ranges[i]
         legend_label = f"{lower} < Correctness ≤ {upper}"
         patch = mpatches.Patch(color=color, label=legend_label)
         legend_handles.append(patch)
@@ -111,22 +111,25 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     x_values = []
     y_values = []
     colors = []
-    markers = []
     metadata = []
     for index in range(len(correctness)):
+        if hashes[index] is None:
+            continue
+        color="red"
         for marker_range in marker_ranges:
-            lower, upper, marker, color = marker_range
-            if color is None:
-                color = "red"
-            if correctness[index]==0 or correctness[index] > lower and correctness[index] <= upper:
-                x_values.append(variability[index])
-                y_values.append(confidence[index])
-                colors.append(color)
-                markers.append(marker)
-                hash_idx = base64.b64decode(hashes[index]).decode('utf-8').split("|||")
-                metadata.append(f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {'Entailment' if labels[index]==0 else 'Neutral' if labels[index]==1 else 'Contradiction' } \nCorrectness: {correctness[index]:.2f}")
+            lower, upper, color = marker_range
+            if(lower<=correctness[index] and correctness[index]<=upper):
+                color = color
                 break
+            
+        x_values.append(variability[index])
+        y_values.append(confidence[index])
+        colors.append(color)
+        
+        hash_idx = base64.b64decode(hashes[index]).decode('utf-8').split("|||")
+        metadata.append(f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {'Entailment' if labels[index]==0 else 'Neutral' if labels[index]==1 else 'Contradiction' } \nCorrectness: {correctness[index]:.2f}")
 
+   
     # Plot all points in a single scatter plot
     sc = ax.scatter(
         x_values,  # All x-values
@@ -144,7 +147,7 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     def on_hover(sel):
         hovered_metadata = sc.metadata[sel.index]  # Use sel.index to get metadata
         # Change alpha for hovered point
-        sel.artist.set_alpha(0.9)  # Hover alpha
+        sel.annotation.set_bbox(dict(boxstyle="round", facecolor="yellow", edgecolor="black", alpha=1.0))  # alpha=1.0 for no transparency
         sel.annotation.set_text(
             #f"Premise: {hash_idx[0]} \nHypothesis: {hash_idx[1]} \nLabel: {labels[index]} \nCorrectness: {correctness[index]:.2f}"
             hovered_metadata
@@ -178,7 +181,7 @@ def plot_data_map(fig, ax, data, title="Data Map"):
     ax.text(x_min + x_offset, y_max - y_offset, "Easy to Learn", fontsize=10, ha='left', va='top', color='red', clip_on=False, fontweight='bold')
 
     # Add text in the middle
-    ax.text((x_min + x_max) / 2, (y_min + y_max) / 2, "Ambiguous", fontsize=10, ha='center', va='center', color='brown', clip_on=False, fontweight='bold')
+    ax.text(x_max-x_offset, (y_min + y_max) / 2, "Ambiguous", fontsize=10, ha='right', va='center', color='brown', clip_on=False, fontweight='bold')
 
     # Add text in the bottom-right corner
     ax.text(x_min + x_offset, y_min + y_offset, "Hard to Learn", fontsize=10, ha='left', va='bottom', color='black', clip_on=False, fontweight='bold')
@@ -248,7 +251,7 @@ def plot_combined(data, title="Data Map with Density"):
     plt.show()
 
 
-def get_focussed_sets( checkpoint_dir,max_confidence=0.5, max_variability=None, max_correctness=0.5):
+def get_focussed_sets( checkpoint_dir,min_confidence=None,max_confidence=None,min_variability=None, max_variability=None,min_correctness=None, max_correctness=None):
     """
     Filter the dataset based on confidence, variability, and correctness thresholds.
 
@@ -263,17 +266,29 @@ def get_focussed_sets( checkpoint_dir,max_confidence=0.5, max_variability=None, 
     """
     dynamics = load_training_dynamics(checkpoint_dir)
     data = compute_metrics(dynamics)
-    filtered_hashes =set()
-    confidence = np.array(data["confidence"])
-    variability = np.array(data["variability"])
-    correctness = np.array(data["correctness"])
-    hashes = np.array(data["hashes"]).tolist()
+    filtered_hashes ={"premise": [], "hypothesis": [], "label": []}
+    print(f"Loaded {len(data['hashes'])} training dynamics before filtering")
+    for idx in range(len(data["hashes"])):
 
-    for i in range(len(confidence)):
-        if confidence[i] <=max_confidence and correctness[i] <= max_correctness and (max_variability is None or variability[i] <= max_variability):
-            filtered_hashes.add(hashes[i])
-            
-    return filtered_hashes
+        if min_variability is not None and data["variability"][idx]<= min_variability :
+            continue
+        if max_variability is not None and data["variability"][idx]>= max_variability :
+            continue
+        if min_confidence is not None and data["confidence"][idx]<= min_confidence :
+            continue
+        if max_confidence is not None and data["confidence"][idx]>= max_confidence :
+            continue
+        if min_correctness is not None and data["correctness"][idx]<= min_correctness :
+            continue
+        if max_correctness is not None and data["correctness"][idx]>= max_correctness :
+            continue
+        hash_idx = base64.b64decode(data["hashes"][idx]).decode('utf-8').split("|||")    
+        filtered_hashes["premise"].append(hash_idx[0])
+        filtered_hashes["hypothesis"].append(hash_idx[1])
+        filtered_hashes["label"].append(data["label"][idx])
+    print(f"Loaded {len(filtered_hashes['premise'])} training dynamics after filtering")    
+    return filtered_hashes 
+   
 
 def plot(checkpoint_dir):
     dynamics = load_training_dynamics(checkpoint_dir)
