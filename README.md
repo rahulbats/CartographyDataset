@@ -54,9 +54,6 @@ trainer = CustomTrainer(
 
 The custom trainer automatically logs confidence, variability, and correctness scores for each instance. These scores are used to create focused datasets and cartographic visualizations.
 
-```bash
-python capture_scores.py --output scores.csv
-```
 
 ### Generating Cartographic Maps
 
@@ -67,6 +64,8 @@ python generate_data_map.py --checkpoint_dir .
 ```
 
 This generates a plot that allows inspection of data points, including tooltips that display the hypothesis, premise, and labels for each instance. The checkpoint\_dir is the parent directory of all your huggingface checkpoints as the jsons with the metrics are stored here
+
+![Example Plot](plot.png)
 
 ### Fine-Tuning on Focused Dataset
 
